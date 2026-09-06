@@ -1,46 +1,47 @@
 import requests
 import pandas as pd
-import json
-from datetime import datetime
 import os
 
-# Create raw folder if not exists (safety)
 os.makedirs("data/raw", exist_ok=True)
 
-# API endpoint for HDFC Top 100 Direct Growth
-url = "https://api.mfapi.in/mf/119018"
+schemes = {
+    "119018": "HDFC_Large_Cap_Direct",
+    "119598": "SBI_Large_Cap_Direct",
+    "120586": "ICICI_Large_Cap_Direct",
+    "118632": "Nippon_Large_Cap_Direct",
+    "120465": "Axis_Large_Cap_Direct",
+    "120152": "Kotak_Large_Cap_Direct"
+}
 
-print("Fetching live NAV data for HDFC Top 100 Direct (Code: 119018)...")
-print(f"URL: {url}")
+print("Fetching Live NAV for Key Large Cap Schemes")
+print("-" * 60)
 
-try:
-    response = requests.get(url, timeout=30)
-    response.raise_for_status()  # Raise error if request failed
+for code, name in schemes.items():
+    url = f"https://api.mfapi.in/mf/{code}"
+    print(f"\nFetching: {name} (Code: {code})")
     
-    data = response.json()
-    
-    # Print basic info
-    print("\n--- Meta Information ---")
-    print(f"Scheme Code : {data['meta']['scheme_code']}")
-    print(f"Scheme Name : {data['meta']['scheme_name']}")
-    print(f"Fund House  : {data['meta']['fund_house']}")
-    print(f"Scheme Type : {data['meta']['scheme_type']}")
-    print(f"Scheme Category : {data['meta']['scheme_category']}")
-    
-    # Convert NAV history to DataFrame
-    nav_df = pd.DataFrame(data['data'])
-    
-    print(f"\nTotal NAV records fetched: {len(nav_df)}")
-    print("\nLatest 5 NAV records:")
-    print(nav_df.head())
-    
-    # Save as CSV in data/raw
-    output_path = "data/raw/live_hdfc_top100_nav.csv"
-    nav_df.to_csv(output_path, index=False)
-    
-    print(f"\n Successfully saved to: {output_path}")
-    
-except requests.exceptions.RequestException as e:
-    print(f" Network/API Error: {e}")
-except Exception as e:
-    print(f" Unexpected Error: {e}")
+    try:
+        response = requests.get(url, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        meta = data.get("meta", {})
+        print(f"  Scheme Name : {meta.get('scheme_name')}")
+        print(f"  Fund House  : {meta.get('fund_house')}")
+        print(f"  Category    : {meta.get('scheme_category')}")
+        
+        nav_df = pd.DataFrame(data["data"])
+        print(f"  Total records: {len(nav_df)}")
+        
+        if not nav_df.empty:
+            print(f"  Latest NAV  : {nav_df.iloc[0]['nav']} on {nav_df.iloc[0]['date']}")
+        
+        output_path = f"data/raw/live_{name}_nav.csv"
+        nav_df.to_csv(output_path, index=False)
+        print(f"  Saved to: {output_path}")
+        
+    except Exception as e:
+        print(f"  Error fetching {name}: {e}")
+
+print("\n" + "-" * 60)
+print("All schemes processed.")
